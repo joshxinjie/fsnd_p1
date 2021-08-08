@@ -42,12 +42,14 @@ class Venue(db.Model):
     state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
+    genres = db.Column(db.ARRAY(db.String(120)))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    website_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
     seeking_talent = db.Column(db.Boolean)
-    seeking_venue = db.Column(db.Boolean)
+    # seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String)
 
     def __repr__(self):
@@ -61,13 +63,15 @@ class Artist(db.Model):
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
+    genres = db.Column(db.ARRAY(db.String(120)))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    website_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
     seeking_venue = db.Column(db.Boolean)
     seeking_description = db.Column(db.String)
+
     def __repr__(self):
       return '<Artist ID: {} | Artist Name: {}>'.format(self.id, self.name)
 
@@ -256,7 +260,7 @@ def create_venue_submission():
       image_link = request.form['image_link'],
       facebook_link = request.form['facebook_link'],
       website_link = request.form['website_link'],
-      # seeking_talent = (request.form['seeking_talent'] == 'y')
+      seeking_talent = (request.form['seeking_talent'] == 'y'),
       seeking_description = request.form['seeking_description']
     )
     db.session.add(new_venue)
@@ -476,7 +480,8 @@ def create_artist_submission():
       genres = request.form['genres'],
       image_link = request.form['image_link'],
       facebook_link = request.form['facebook_link'],
-      seeking_venue = request.form['seeking_venue'],
+      website_link = request.form['website_link'],
+      seeking_venue = (request.form['seeking_venue'] == 'y'),
       seeking_description = request.form['seeking_description']
     )
     db.session.add(new_artist)
