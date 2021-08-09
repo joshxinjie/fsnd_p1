@@ -76,12 +76,15 @@ class Artist(db.Model):
       return '<Artist ID: {} | Artist Name: {}>'.format(self.id, self.name)
 
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
-Show = db.Table(
-  'Show',
-  db.Column('venue_id', db.Integer, db.ForeignKey('Venue.id')),
-  db.Column('artist_id', db.Integer, db.ForeignKey('Artist.id')),
-  db.Column('start_time', db.DateTime)
-)
+class Show(db.Model):
+    __tablename__ = 'Show'
+    id = db.Column(db.Integer, primary_key=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
+    venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return f'<Show {self.id}>'
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -248,7 +251,6 @@ def create_venue_submission():
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
   error = False
-  print("HAHAHAHA: " + request.form['seeking_talent'])
   try:
     new_venue = Venue(
       name = request.form['name'],
@@ -559,12 +561,12 @@ def create_show_submission():
   # TODO: insert form data as a new Show record in the db, instead
   error = False
   try:
-    new_show = Show.insert().values(
+    new_show = Show(
       venue_id = request.form['venue_id'],
       artist_id = request.form['artist_id'],
       start_time = request.form['start_time']
     )
-    db.session.add(new_venue)
+    db.session.add(new_show)
     db.session.commit()
     flash('Show was successfully listed!')
   except:
