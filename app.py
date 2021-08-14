@@ -45,12 +45,12 @@ class Venue(db.Model):
     genres = db.Column(db.ARRAY(db.String(120)))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    website_link = db.Column(db.String(120))
+    website_link = db.Column(db.String(120), nullable=True)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    seeking_talent = db.Column(db.Boolean)
+    seeking_talent = db.Column(db.Boolean, default=False)
     # seeking_venue = db.Column(db.Boolean)
-    seeking_description = db.Column(db.String)
+    seeking_description = db.Column(db.String, nullable=True)
 
     def __repr__(self):
       return '<Venue ID: {} | Venue Name: {}>'.format(self.id, self.name)
@@ -69,7 +69,7 @@ class Artist(db.Model):
     website_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    seeking_venue = db.Column(db.Boolean)
+    seeking_venue = db.Column(db.Boolean, default=False)
     seeking_description = db.Column(db.String)
 
     def __repr__(self):
@@ -137,6 +137,11 @@ def venues():
       "num_upcoming_shows": 0,
     }]
   }]
+
+  city_state_results = db.session.query(Venue.city, Venue.state).group_by(Venue.city, Venue.state).all()
+  # print(search_results)
+  # [('San Francisco', 'CA'), ('New York', 'NY')]
+
   return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
@@ -144,22 +149,66 @@ def search_venues():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
+  
+  # response={
+  #   "count": 1,
+  #   "data": [{
+  #     "id": 2,
+  #     "name": "The Dueling Pianos Bar",
+  #     "num_upcoming_shows": 0,
+  #   }]
+  # }
+
+  data = []
+
+  search_term = request.form.get('search_term', '')
+  search_results = db.session.query(Venue).filter(Venue.name.ilike(f'%{search_term}%')).all()
+  results_counts = len(search_results)
+
+  for result in search_results:
+    venue_id = result.id
+    venue_name = result.name
+    num_upcoming_shows = search_num_upcoming_shows_by_venue(venue_id)
+    data.append({
+      "id": venue_id,
+      "name": venue_name,
+      "num_upcoming_shows": num_upcoming_shows
+    })
+
+  response = {
+    "count": results_counts,
+    "data": data
   }
+
   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+
+def search_num_upcoming_shows_by_venue(venue_id):
+  """
+  Searches for the number of upcoming shows to be hosted at the specified venue.
+
+  Parameters
+  ----------
+  venue_id : int
+    The venue id.
+
+  Returns
+  -------
+  int
+    The number of upcoming shows to be hosted at the specified venue.
+  """
+  search_results = db.session.query(Show)\
+    .filter(Show.venue_id == venue_id)\
+    .filter(Show.start_time > datetime.now())\
+    .all()
+
+  return len(search_results)
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
   # TODO: replace with real venue data from the venues table, using venue_id
   data1={
-    "id": 1,
+    "id": 4,
     "name": "The Musical Hop",
     "genres": ["Jazz", "Reggae", "Swing", "Classical", "Folk"],
     "address": "1015 Folsom Street",
@@ -172,7 +221,7 @@ def show_venue(venue_id):
     "seeking_description": "We are on the lookout for a local artist to play every two weeks. Please call us.",
     "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60",
     "past_shows": [{
-      "artist_id": 4,
+      "artist_id": 1,
       "artist_name": "Guns N Petals",
       "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
       "start_time": "2019-05-21T21:30:00.000Z"
@@ -182,7 +231,7 @@ def show_venue(venue_id):
     "upcoming_shows_count": 0,
   }
   data2={
-    "id": 2,
+    "id": 5,
     "name": "The Dueling Pianos Bar",
     "genres": ["Classical", "R&B", "Hip-Hop"],
     "address": "335 Delancey Street",
@@ -199,7 +248,7 @@ def show_venue(venue_id):
     "upcoming_shows_count": 0,
   }
   data3={
-    "id": 3,
+    "id": 6,
     "name": "Park Square Live Music & Coffee",
     "genres": ["Rock n Roll", "Jazz", "Classical", "Folk"],
     "address": "34 Whiskey Moore Ave",
@@ -252,6 +301,12 @@ def create_venue_submission():
   # TODO: modify data to be the data object returned from db insertion
   error = False
   try:
+    seeking_talent = False
+    seeking_description = ''
+    if 'seeking_talent' in request.form:
+      seeking_talent = request.form['seeking_talent'] == 'y'
+    if 'seeking_description' in request.form:
+      seeking_description = request.form['seeking_description']
     new_venue = Venue(
       name = request.form['name'],
       city = request.form['city'],
@@ -262,8 +317,8 @@ def create_venue_submission():
       image_link = request.form['image_link'],
       facebook_link = request.form['facebook_link'],
       website_link = request.form['website_link'],
-      seeking_talent = (request.form['seeking_talent'] == 'y'),
-      seeking_description = request.form['seeking_description']
+      seeking_talent = seeking_talent,
+      seeking_description = seeking_description
     )
     db.session.add(new_venue)
     db.session.commit()
@@ -313,26 +368,66 @@ def search_artists():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
-  response={
-    "count": 1,
-    "data": [{
-      "id": 4,
-      "name": "Guns N Petals",
-      "num_upcoming_shows": 0,
-    }]
-  }
+
+  # response={
+  #   "count": 1,
+  #   "data": [{
+  #     "id": 4,
+  #     "name": "Guns N Petals",
+  #     "num_upcoming_shows": 0,
+  #   }]
+  # }
+
+  data = []
+
   search_term = request.form.get('search_term', '')
   search_results = db.session.query(Artist).filter(Artist.name.ilike(f'%{search_term}%')).all()
   results_counts = len(search_results)
-  print(search_results)
+
+  for result in search_results:
+    artist_id = result.id
+    artist_name = result.name
+    num_upcoming_shows = search_num_upcoming_shows_by_artist(artist_id)
+    data.append({
+      "id": artist_id,
+      "name": artist_name,
+      "num_upcoming_shows": num_upcoming_shows
+    })
+
+  response = {
+    "count": results_counts,
+    "data": data
+  }
+
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
+
+def search_num_upcoming_shows_by_artist(artist_id):
+  """
+  Searches for the number of upcoming shows to be perform by the specified artist.
+
+  Parameters
+  ----------
+  artist_id : int
+    The artist id.
+
+  Returns
+  -------
+  int
+    The number of upcoming shows to be performed by the artist.
+  """
+  search_results = db.session.query(Show)\
+    .filter(Show.artist_id == artist_id)\
+    .filter(Show.start_time > datetime.now())\
+    .all()
+
+  return len(search_results)
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   # TODO: replace with real artist data from the artist table, using artist_id
   data1={
-    "id": 4,
+    "id": 1,
     "name": "Guns N Petals",
     "genres": ["Rock n Roll"],
     "city": "San Francisco",
@@ -344,7 +439,7 @@ def show_artist(artist_id):
     "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
     "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
     "past_shows": [{
-      "venue_id": 1,
+      "venue_id": 4,
       "venue_name": "The Musical Hop",
       "venue_image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60",
       "start_time": "2019-05-21T21:30:00.000Z"
@@ -364,7 +459,7 @@ def show_artist(artist_id):
     "seeking_venue": False,
     "image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
     "past_shows": [{
-      "venue_id": 3,
+      "venue_id": 6,
       "venue_name": "Park Square Live Music & Coffee",
       "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
       "start_time": "2019-06-15T23:00:00.000Z"
@@ -384,17 +479,17 @@ def show_artist(artist_id):
     "image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
     "past_shows": [],
     "upcoming_shows": [{
-      "venue_id": 3,
+      "venue_id": 6,
       "venue_name": "Park Square Live Music & Coffee",
       "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
       "start_time": "2035-04-01T20:00:00.000Z"
     }, {
-      "venue_id": 3,
+      "venue_id": 6,
       "venue_name": "Park Square Live Music & Coffee",
       "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
       "start_time": "2035-04-08T20:00:00.000Z"
     }, {
-      "venue_id": 3,
+      "venue_id": 6,
       "venue_name": "Park Square Live Music & Coffee",
       "venue_image_link": "https://images.unsplash.com/photo-1485686531765-ba63b07845a7?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=747&q=80",
       "start_time": "2035-04-15T20:00:00.000Z"
@@ -469,11 +564,18 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
+  #  error when seeking_value is empty
   # called upon submitting the new artist listing form
   # TODO: insert form data as a new Venue record in the db, instead
   # TODO: modify data to be the data object returned from db insertion
   error = False
   try:
+    seeking_venue = False
+    seeking_description = ''
+    if 'seeking_venue' in request.form:
+      seeking_venue = request.form['seeking_venue'] == 'y'
+    if 'seeking_description' in request.form:
+      seeking_description = request.form['seeking_description']
     new_artist = Artist(
       name = request.form['name'],
       city = request.form['city'],
@@ -483,8 +585,8 @@ def create_artist_submission():
       image_link = request.form['image_link'],
       facebook_link = request.form['facebook_link'],
       website_link = request.form['website_link'],
-      seeking_venue = (request.form['seeking_venue'] == 'y'),
-      seeking_description = request.form['seeking_description']
+      seeking_venue = seeking_venue,
+      seeking_description = seeking_description
     )
     db.session.add(new_artist)
     db.session.commit()
