@@ -181,18 +181,41 @@ python3 app.py
 6. **Verify on the Browser**<br>
 Navigate to project homepage [http://127.0.0.1:5000/](http://127.0.0.1:5000/) or [http://localhost:5000](http://localhost:5000) 
 
-## Own setup
+## Virtualenv Setup 
 
-Install virtualenv
+To install virtualenv:
 ```
 python3 -m pip install --user virtualenv
 ```
 
-Create virtual environment
+To create a virtual environment called `fsndp1`:
 ```
 python3 -m virtualenv fsndp1
 ```
 
+To activate the virtual environment called `fsndp1`:
 ```
 source fsndp1/bin/activate
+```
+
+## Flask Migration Setup
+
+When setting up Flask-Migrate for the first time, run the following command to create the initial migrations directory structure:
+```
+flask db init
+```
+
+Whenever there is a change in schema, create a new migrations file with the upgrade/downgrade logic by running the following command:
+```
+flask db migrate
+```
+
+To run the upgrade command in the migrations file, and apply the migration:
+```
+flask db upgrade
+```
+
+If there is a need to roll back the migrations, run the downgrade command in the migrations file:
+```
+flask db downgrade
 ```
