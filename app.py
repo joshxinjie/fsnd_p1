@@ -447,6 +447,7 @@ def create_venue_submission():
     error = True
     db.session.rollback()
     flash('An error occurred. Venue ' + request.form['name'] + ' could not be listed.')
+    print(sys.exc_info())
   finally:
     db.session.close()
 
@@ -477,6 +478,7 @@ def delete_venue(venue_id):
     error = True
     db.session.rollback()
     flash('An error occurred. Venue ' + request.form['name'] + ' could not be deleted.')
+    print(sys.exc_info())
   finally:
     db.session.close()
   return None
@@ -969,6 +971,7 @@ def create_artist_submission():
     error = True
     db.session.rollback()
     flash('An error occurred. Artist ' + request.form['name'] + ' could not be listed.')
+    print(sys.exc_info())
   finally:
     db.session.close()
 
